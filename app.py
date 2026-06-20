@@ -3,16 +3,18 @@ import pymongo
 from google import genai
 from google.genai import types
 import numpy as np
+import cohere
 
 # =======================
 # CONFIGURACIÓN
 # =======================
 
 GOOGLE_API_KEY = st.secrets["app"]["GOOGLE_API_KEY"]
+COHERE_API_KEY = st.secrets["app"]["COHERE_API_KEY"]
 MONGODB_URI = st.secrets["app"]["MONGODB_URI"]
 
-if not GOOGLE_API_KEY or not MONGODB_URI:
-    st.error("❌ Faltan las variables de entorno GOOGLE_API_KEY o MONGODB_URI")
+if not _API_KEY or not MONGODB_URI or not COHERE_API_KEY:
+    st.error("❌ Faltan las variables de entorno")
     st.stop()
 
 # =======================
@@ -32,6 +34,11 @@ def get_mongo_collection():
 client_genai = get_genai_client()
 collection = get_mongo_collection()
 
+# Aqui añadimos a cohere
+@st.cache_resource
+def get_cohere_client():
+    return cohere.Client(api_key=COHERE_API_KEY)
+
 # =======================
 # FUNCIONES
 # =======================
@@ -44,14 +51,32 @@ def crear_embedding(texto: str):
     IMPORTANTE: para queries de búsqueda usar task_type='RETRIEVAL_QUERY'
     (al indexar se usó 'RETRIEVAL_DOCUMENT').
     """
-    response = client_genai.models.embed_content(
-        model="gemini-embedding-001",
-        contents=texto,
-        config=types.EmbedContentConfig(
-            task_type="RETRIEVAL_QUERY",
-        ),
+    co = get_cohere_client()
+    
+    response = co.emdeb(
+        texts=[texto],
+        model="embed-multilingual-v3.0",
+        input_type="search_document"
     )
-    return response.embeddings[0].values
+    return responde.embeddings[0].values
+
+    gemini = get_genai_client()
+    respuesta = gemini.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt
+    )
+    
+    #response = client_genai.models.embed_content(
+     #   model="gemini-embedding-001",
+      #  contents=texto,
+       # config=types.EmbedContentConfig(
+        #    task_type="RETRIEVAL_QUERY",
+        #),
+    #)
+    #return response.embeddings[0].values
+    
+
+
 
 def buscar_similares(embedding, k=5):
     """
